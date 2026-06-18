@@ -8,11 +8,11 @@ Aufbau und Verifikation einer segmentierten Netzwerkarchitektur mit pfSense (Com
 
 Drei Sicherheitszonen (GUEST / PRODUCTION / MGMT) auf dedizierten pfSense-Interfaces, verifiziert durch aktiven Test:
 
-- **GUEST → PRODUCTION:** nachweislich `filtered` (1000 Ports, silent drop) — Lateral Movement unterbunden.
-- **GUEST → MGMT:** nachweislich `filtered` — Management-Netz aus dem Untrusted-Segment nicht erreichbar.
-- **GUEST → Internet:** funktioniert — die Policy blockt gezielt intern, ohne legitime Konnektivität zu brechen.
+- **GUEST → PRODUCTION:** nachweislich `filtered` (1000 Ports, silent drop) - Lateral Movement unterbunden.
+- **GUEST → MGMT:** nachweislich `filtered` - Management-Netz aus dem Untrusted-Segment nicht erreichbar.
+- **GUEST → Internet:** funktioniert - die Policy blockt gezielt intern, ohne legitime Konnektivität zu brechen.
 - **Defender-Sicht:** beide Blocks im Firewall-Log mit Quelle, Ziel und Port belegt.
-- **Eigenes Finding:** Webconfigurator aus GUEST erreichbar — dokumentiert mit Risikobewertung und Remediation (siehe [7](#7-findings--bekannte-limitierungen)).
+- **Eigenes Finding:** Webconfigurator aus GUEST erreichbar - dokumentiert mit Risikobewertung und Remediation (siehe [7](#7-findings--bekannte-limitierungen)).
 
 ---
 
@@ -80,13 +80,13 @@ Virtualisierung: KVM/QEMU (libvirt, `qemu:///system`) auf Arch-Linux-Host. Jedes
 | MGMT | 10.10.50.0/24 | 10.10.50.100 – 10.10.50.199 |
 | PRODUCTION | 10.10.40.0/24 | 10.10.40.10 – 10.10.40.100 |
 
-Hosts: `kali` → 10.10.20.100 (GUEST, DHCP). `target` → 10.10.40.10 (PRODUCTION, statisch konfiguriert — ein passives Ziel braucht keine dynamische Adresse).
+Hosts: `kali` → 10.10.20.100 (GUEST, DHCP). `target` → 10.10.40.10 (PRODUCTION, statisch konfiguriert - ein passives Ziel braucht keine dynamische Adresse).
 
 ---
 
 ## 5. Firewall-Policy
 
-pfSense wertet Regeln pro Interface **first-match, top-down** aus. Spezifische Blocks stehen daher **vor** der generellen Allow-Regel — sonst würde die Allow-Any-Regel zuerst greifen und die Blocks würden nie erreicht.
+pfSense wertet Regeln pro Interface **first-match, top-down** aus. Spezifische Blocks stehen daher **vor** der generellen Allow-Regel - sonst würde die Allow-Any-Regel zuerst greifen und die Blocks würden nie erreicht.
 
 ### Soll-Matrix
 
@@ -119,9 +119,9 @@ Angreifer: `kali` (10.10.20.100, GUEST). Ziele: `target` (10.10.40.10, PRODUCTIO
 
 ### 6.1 Warum die Regel-Reihenfolge der eigentliche Test ist
 
-In einer first-match-Firewall ist nicht die *Existenz* der Block-Regel entscheidend, sondern ihre **Position**. Läge `pass GUEST → any` oberhalb der beiden Blocks, würde der Scan-Traffic die Allow-Regel zuerst treffen und passieren — die Pakete erreichten das Ziel, das mit RST antwortet, und nmap meldete Ports als `closed` (Host erreichbar, kein Dienst). Erst mit den Blocks **oberhalb** der Allow-Regel trifft der SYN zuerst die Block-Regel, pfSense verwirft still, und die Ports erscheinen als `filtered`.
+In einer first-match-Firewall ist nicht die *Existenz* der Block-Regel entscheidend, sondern ihre **Position**. Läge `pass GUEST → any` oberhalb der beiden Blocks, würde der Scan-Traffic die Allow-Regel zuerst treffen und passieren - die Pakete erreichten das Ziel, das mit RST antwortet, und nmap meldete Ports als `closed` (Host erreichbar, kein Dienst). Erst mit den Blocks **oberhalb** der Allow-Regel trifft der SYN zuerst die Block-Regel, pfSense verwirft still, und die Ports erscheinen als `filtered`.
 
-Der Unterschied `closed` vs. `filtered` ist damit der direkte Indikator, ob die Auswertungsreihenfolge korrekt ist — der häufigste Konfigurationsfehler bei Segmentierung. Die hier dokumentierten Scans zeigen durchgängig `filtered`, d. h. die Blocks greifen vor der Allow-Regel.
+Der Unterschied `closed` vs. `filtered` ist damit der direkte Indikator, ob die Auswertungsreihenfolge korrekt ist - der häufigste Konfigurationsfehler bei Segmentierung. Die hier dokumentierten Scans zeigen durchgängig `filtered`, d. h. die Blocks greifen vor der Allow-Regel.
 
 `closed` = Paket erreicht den Host, RST zurück (Host erreichbar). `filtered` = keine Antwort, vom Firewall-Block (Drop) verworfen.
 
@@ -136,7 +136,7 @@ Not shown: 1000 filtered tcp ports (no-response)
 Nmap done: 1 IP address (1 host up) scanned in 201.83 seconds
 ```
 
-Alle 1000 Ports `filtered`, `no-response`. Die hohe Scan-Dauer (~200 s) ist selbst ein Indikator: nmap wartet bei jedem still verworfenen Paket bis zum Timeout — im Gegensatz zum schnellen RST bei `closed`.
+Alle 1000 Ports `filtered`, `no-response`. Die hohe Scan-Dauer (~200 s) ist selbst ein Indikator: nmap wartet bei jedem still verworfenen Paket bis zum Timeout - im Gegensatz zum schnellen RST bei `closed`.
 
 ![nmap GUEST → PRODUCTION: 1000 Ports filtered](screenshots/nmap_prod.png)
 
@@ -151,13 +151,13 @@ Not shown: 1000 filtered tcp ports (no-response)
 Nmap done: 1 IP address (1 host up) scanned in 201.80 seconds
 ```
 
-Identisches Verhalten — GUEST erreicht auch das Management-Netz nicht. Gescannt wird das MGMT-Gateway-Interface, da im Lab keine dedizierte MGMT-Host-VM existiert (siehe 7).
+Identisches Verhalten - GUEST erreicht auch das Management-Netz nicht. Gescannt wird das MGMT-Gateway-Interface, da im Lab keine dedizierte MGMT-Host-VM existiert (siehe 7).
 
 ![nmap GUEST → MGMT: 1000 Ports filtered](screenshots/nmap_mgmt.png)
 
 ### 6.4 GUEST → Internet (muss erlaubt sein)
 
-`curl -I https://1.1.1.1` von kali liefert eine HTTP-Antwort. Damit ist nachgewiesen, dass die Policy **gezielt** die internen Zonen blockt und nicht pauschal die Konnektivität bricht — GUEST funktioniert wie vorgesehen, nur eben ausschließlich Richtung Internet.
+`curl -I https://1.1.1.1` von kali liefert eine HTTP-Antwort. Damit ist nachgewiesen, dass die Policy **gezielt** die internen Zonen blockt und nicht pauschal die Konnektivität bricht - GUEST funktioniert wie vorgesehen, nur eben ausschließlich Richtung Internet.
 
 ![curl von GUEST ins Internet erfolgreich](screenshots/guest_internetaccess.png)
 
@@ -178,7 +178,7 @@ Der zugehörige Scan, der diese Log-Einträge erzeugt hat (gezielte Ports gegen 
 
 ![Scan zur Erzeugung der Log-Einträge](screenshots/nmap_mgmt_prod_scan_forLog.png)
 
-Damit ist die Segmentierung von **beiden Seiten** dokumentiert: Der Angreifer sieht `filtered` (kein Rückkanal), der Verteidiger sieht jedes verworfene Paket im Log inklusive Quelle, Ziel und Port — die Grundlage für Alerting/Detection.
+Damit ist die Segmentierung von **beiden Seiten** dokumentiert: Der Angreifer sieht `filtered` (kein Rückkanal), der Verteidiger sieht jedes verworfene Paket im Log inklusive Quelle, Ziel und Port - die Grundlage für Alerting/Detection.
 
 ### Testmatrix
 
@@ -188,7 +188,7 @@ Damit ist die Segmentierung von **beiden Seiten** dokumentiert: Der Angreifer si
 | GUEST → MGMT geblockt | kali | `sudo nmap -Pn -sS 10.10.50.1` | filtered | ✅ belegt (6.3) |
 | GUEST → Internet erlaubt | kali | `curl -I https://1.1.1.1` | HTTP-Response | ✅ belegt (6.4) |
 | Blocks im FW-Log sichtbar | pfSense | Status → System Logs → Firewall | Block-Einträge | ✅ belegt (6.5) |
-| MGMT → PROD erlaubt | MGMT-Host | `sudo nmap -Pn -sS 10.10.40.10` | erreichbar | ☐ nicht praktisch getestet — Regel erlaubt es, aber im Lab existiert keine MGMT-Host-VM (siehe 7) |
+| MGMT → PROD erlaubt | MGMT-Host | `sudo nmap -Pn -sS 10.10.40.10` | erreichbar | ☐ nicht praktisch getestet - Regel erlaubt es, aber im Lab existiert keine MGMT-Host-VM (siehe 7) |
 
 ---
 
@@ -198,7 +198,7 @@ Damit ist die Segmentierung von **beiden Seiten** dokumentiert: Der Angreifer si
 
 Der pfSense-Webconfigurator ist aus dem GUEST-Segment über das GUEST-Gateway-Interface (`https://10.10.20.1`) erreichbar. Ursache: Die GUEST-Block-Regeln filtern Traffic in die PRODUCTION- und MGMT-*Subnetze*; ein Zugriff auf die GUEST-Interface-IP von pfSense selbst (10.10.20.1) fällt unter keine dieser Regeln und wird von `pass GUEST → any` erlaubt.
 
-**Risiko:** Ein kompromittierter Client im am wenigsten vertrauenswürdigen Netz erreicht die Management-Oberfläche der Firewall. In Produktion ein ernstzunehmendes Finding — die Management-Plane gehört strikt isoliert.
+**Risiko:** Ein kompromittierter Client im am wenigsten vertrauenswürdigen Netz erreicht die Management-Oberfläche der Firewall. In Produktion ein ernstzunehmendes Finding - die Management-Plane gehört strikt isoliert.
 
 **Remediation (Produktion):** Block-Regel auf GUEST *oberhalb* der Allow-Regel, die Traffic zu „This Firewall" auf den Management-Ports (443/80/22) verwirft; Webconfigurator-Zugriff an das MGMT-Interface binden; Anti-Lockout nur auf MGMT.
 
@@ -206,7 +206,7 @@ Der pfSense-Webconfigurator ist aus dem GUEST-Segment über das GUEST-Gateway-In
 
 ### Weitere Limitierungen
 
-- **Keine dedizierte MGMT-Host-VM:** Der GUEST→MGMT-Block wird gegen das MGMT-Gateway-Interface (10.10.50.1) verifiziert. Der Positivtest MGMT→PROD ist daher nicht praktisch gefahren — die Regel erlaubt es, ein praktischer Nachweis bräuchte eine zweite VM im MGMT-Netz.
+- **Keine dedizierte MGMT-Host-VM:** Der GUEST→MGMT-Block wird gegen das MGMT-Gateway-Interface (10.10.50.1) verifiziert. Der Positivtest MGMT→PROD ist daher nicht praktisch gefahren - die Regel erlaubt es, ein praktischer Nachweis bräuchte eine zweite VM im MGMT-Netz.
 - **PRODUCTION ohne Outbound:** für die Demo bewusst total isoliert, für Produktivbetrieb unrealistisch (mind. Update-Traffic nötig, siehe 5).
 - **ISC DHCP ist End-of-Life** (pfSense-Warnung). Migration auf Kea DHCP wäre der nächste Schritt.
 - **IPv6 nicht einheitlich konfiguriert:** Fokus dieser Arbeitsprobe liegt auf IPv4-Segmentierung. Eine vollständige Lösung bräuchte eine konsistente v6-Policy oder global deaktiviertes IPv6, um keinen ungefilterten v6-Pfad zu hinterlassen.
